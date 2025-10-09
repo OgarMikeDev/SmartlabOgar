@@ -37,11 +37,11 @@ public class Bot extends TelegramLongPollingBot {
             .build();
     boolean isButtonForPriceShare = false;
     private InlineKeyboardButton buttonForNotificationMinPrice = InlineKeyboardButton.builder()
-            .text("Получить желаемую цену акции")
+            .text("Получить желаемую цену акции для покупки")
             .callbackData("желаемая цена акции")
             .build();
     private InlineKeyboardButton buttonForNotificationMaxPrice = InlineKeyboardButton.builder()
-            .text("Получить цену акции для продажи")
+            .text("Получить top цену акции для продажи")
             .callbackData("цена акции для продажи")
             .build();
     private InlineKeyboardMarkup keyboardForButtonsMenu = InlineKeyboardMarkup.builder()
