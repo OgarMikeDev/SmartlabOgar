@@ -16,10 +16,10 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 
 import java.io.File;
 import java.io.FileWriter;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class Bot extends TelegramLongPollingBot {
     Document document;
@@ -40,6 +40,11 @@ public class Bot extends TelegramLongPollingBot {
             .text("Получить желаемую цену акции для покупки")
             .callbackData("желаемая цена акции")
             .build();
+    boolean isButtonForNotificationMinPrice = false;
+    String nameShareForMinPrice = "";
+    double priceShareForMinPrice = 0.0;
+    boolean hasMinPrice = false;
+    boolean foundMinPriceForShare = false;
     private InlineKeyboardButton buttonForNotificationMaxPrice = InlineKeyboardButton.builder()
             .text("Получить top цену акции для продажи")
             .callbackData("цена акции для продажи")
@@ -74,6 +79,41 @@ public class Bot extends TelegramLongPollingBot {
             if (isButtonForPriceShare && mapShares.containsKey(textMessage)) {
                 sendMessage.setText("Цена " + textMessage + " составляет " + mapShares.get(textMessage) + " руб.");
                 isButtonForPriceShare = false;
+            }
+
+            if (isButtonForNotificationMinPrice && mapShares.containsKey(textMessage)) {
+                nameShareForMinPrice = textMessage;
+                sendMessage.setText("Введите цену для акции \"" + textMessage + "\"");
+                hasMinPrice = true;
+            }
+
+            else if (hasMinPrice) {
+                System.out.println("Цена: " + textMessage);
+                priceShareForMinPrice = Double.parseDouble(textMessage);
+                sendMessage.setText("Можем парсить цену акции для покупки");
+                try {
+                    while (!foundMinPriceForShare) {
+                        System.out.println("Ищем цену для сравнения!");
+                        Document document = Jsoup.connect("https://smart-lab.ru/q/shares/").get();
+                        Elements elements = document.select("tr");
+                        for (Element element : elements) {
+                            String strElement = element.toString();
+                            if (strElement.contains(nameShareForMinPrice)) {
+                                double actualPrice = Double.parseDouble(returnPrice(element));
+                                if (actualPrice <= priceShareForMinPrice) {
+                                    System.out.println("Покупайте \"" + nameShareForMinPrice + "\" и Вы не пожалеете :)");
+                                    isButtonForNotificationMinPrice = false;
+                                    hasMinPrice = false;
+                                    foundMinPriceForShare = true;
+                                    break;
+                                }
+                            }
+                        }
+                        TimeUnit.SECONDS.sleep(10);
+                    }
+                } catch (Exception ex) {
+                    System.out.println(ex.getMessage());
+                }
             }
 
             try {
@@ -131,6 +171,10 @@ public class Bot extends TelegramLongPollingBot {
             } else if (callbackData.equals(buttonForPriceShare.getCallbackData())) {
                 editMessageText.setText("Введите название акций:");
                 isButtonForPriceShare = true;
+            } else if (callbackData.equals(buttonForNotificationMinPrice.getCallbackData())) {
+                editMessageText.setText("Введите название акций:");
+                isButtonForNotificationMinPrice = true;
+
             }
 
             try {
@@ -166,7 +210,7 @@ public class Bot extends TelegramLongPollingBot {
         return name;
     }
 
-    public String returnListPrice(Element element) {
+    public String returnPrice(Element element) {
         String price = "";
         try {
             Element elementPrice = element.selectFirst(".trades-table__price");
@@ -186,7 +230,7 @@ public class Bot extends TelegramLongPollingBot {
             String strElement = element.toString();
             if (strElement.contains("trades-table__name") &&
                     strElement.contains("trades-table__price")) {
-                mapShares.put(returnListName(element), returnListPrice(element));
+                mapShares.put(returnListName(element), returnPrice(element));
             }
         }
 
